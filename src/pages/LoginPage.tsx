@@ -75,7 +75,7 @@ export default function LoginPage() {
             <img
               src="/NEUPAY.png"
               alt="NeuPay"
-              className="size-28 rounded-2xl object-contain shadow-lg shadow-brand-900/30 ring-1 ring-white/10"
+              className="size-28 rounded-2xl object-contain"
             />
             <h1 className="mt-5 text-2xl font-bold tracking-tight login-shimmer-text">
               {APP_NAME}

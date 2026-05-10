@@ -51,7 +51,7 @@ export function MobileSidebar({ open, onClose }: { open: boolean; onClose: () =>
             <img
               src="/NEUPAY.png"
               alt="NeuPay"
-              className="size-12 rounded-xl object-contain shrink-0"
+              className="size-28 rounded-2xl object-contain"
             />
             <div className="text-base font-semibold">NeuPay Console</div>
           </div>

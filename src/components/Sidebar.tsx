@@ -45,7 +45,7 @@ export function Sidebar() {
         <img
           src="/NEUPAY.png"
           alt="NeuPay"
-          className="size-14 rounded-xl object-contain shrink-0"
+          className="size-28 rounded-2xl object-contain"
         />
         <div>
           <div className="text-base font-semibold text-text-primary">NeuPay</div>
