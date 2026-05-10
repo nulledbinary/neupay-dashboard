@@ -20,7 +20,7 @@ export default function LoginPage() {
   const location = useLocation();
   const from = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname ?? '/dashboard';
 
-  const [principal, setPrincipal] = useState('');
+  const [idNumber, setIdNumber] = useState('');
   const [password, setPassword] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
 
@@ -32,7 +32,7 @@ export default function LoginPage() {
     e.preventDefault();
     setLocalError(null);
     try {
-      await signIn(principal.trim(), password);
+      await signIn(idNumber.trim(), password);
       const next = useAuth.getState().session;
       if (next && !isStaffRole(next.user.role)) {
         await useAuth.getState().signOut();
@@ -85,12 +85,13 @@ export default function LoginPage() {
 
           <form onSubmit={onSubmit} className="mt-8 flex flex-col gap-4">
             <Input
-              label="Email or Staff ID"
-              placeholder="bgdduque@neupay.local"
+              label="ID Number"
+              placeholder="22-14309-736"
               autoComplete="username"
+              inputMode="text"
               required
-              value={principal}
-              onChange={(e) => setPrincipal(e.target.value)}
+              value={idNumber}
+              onChange={(e) => setIdNumber(e.target.value)}
               leftIcon={<IdCard className="size-4" />}
             />
             <Input

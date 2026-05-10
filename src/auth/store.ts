@@ -19,7 +19,7 @@ interface AuthState {
   session: AuthSession | null;
   loginError: string | null;
   loading: boolean;
-  signIn: (principal: string, password: string) => Promise<void>;
+  signIn: (idNumber: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   /** Internal: called by the axios refresh interceptor. */
   applyRefresh: (next: AuthResponse) => void;
@@ -35,10 +35,10 @@ export const useAuth = create<AuthState>()((set, get) => ({
   loginError: null,
   loading: false,
 
-  signIn: async (principal, password) => {
+  signIn: async (idNumber, password) => {
     set({ loading: true, loginError: null });
     try {
-      const auth = await authApi.login({ principal, password });
+      const auth = await authApi.login({ idNumber, password });
       setAuthTokens(auth.accessToken, auth.refreshToken);
       set({
         session: {

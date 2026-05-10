@@ -2,16 +2,14 @@ import { api } from './client';
 import type { AuthResponse, StepUpResponse } from './types';
 
 export interface LoginInput {
-  /** NEU email or faculty/staff ID number. */
-  principal: string;
+  /** Faculty / staff ID number — emails are no longer accepted. */
+  idNumber: string;
   password: string;
 }
 
-export async function login({ principal, password }: LoginInput): Promise<AuthResponse> {
-  // Backend kept the JSON field name `email` for iOS backward compatibility,
-  // but the field accepts either email or ID number.
+export async function login({ idNumber, password }: LoginInput): Promise<AuthResponse> {
   const { data } = await api.post<AuthResponse>('/auth/login', {
-    email: principal,
+    idNumber,
     password,
   });
   return data;

@@ -8,6 +8,7 @@ import {
   Coins,
   ArrowUpRight,
   Receipt,
+  Info,
 } from 'lucide-react';
 import { adminTransactions, cashInStats } from '@/api/transactions';
 import { searchUsers } from '@/api/users';
@@ -20,7 +21,15 @@ import { RoleBadge } from '@/components/RoleBadge';
 import { formatPHP, formatRelative } from '@/lib/format';
 import { usePageHeader } from '@/components/Layout';
 import { useAuth } from '@/auth/store';
-import { personaFor, personaLabel } from '@/lib/roles';
+import { personaFor, personaLabel, roleLabel } from '@/lib/roles';
+import type { UserRole } from '@/api/types';
+
+const RANGE_LABEL: Record<number, string> = {
+  7: 'past week',
+  14: 'past two weeks',
+  30: 'past month',
+  90: 'past three months',
+};
 
 export default function DashboardPage() {
   const session = useAuth((s) => s.session);
@@ -52,35 +61,65 @@ export default function DashboardPage() {
   });
 
   const totals = computeTotals(stats.data?.buckets);
+  const rangeLabel = RANGE_LABEL[days] ?? `last ${days} days`;
+  const avgPerDay = totals.totalCount === 0 ? 0 : totals.totalCount / days;
+  const avgPerTopup = totals.totalCount === 0 ? 0 : totals.totalAmount / totals.totalCount;
+  const topShare =
+    totals.topRoleAmount > 0 && totals.totalAmount > 0
+      ? Math.round((totals.topRoleAmount / totals.totalAmount) * 100)
+      : 0;
 
   return (
     <div className="flex flex-col gap-6">
+      <Card padding="sm" className="flex items-start gap-3">
+        <span className="mt-0.5 inline-flex h-7 w-7 items-center justify-center rounded-lg bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300">
+          <Info className="size-3.5" />
+        </span>
+        <div className="text-xs text-text-secondary leading-relaxed">
+          <span className="font-semibold text-text-primary">What you're seeing</span> — every
+          card and chart below is scoped to wallet <span className="font-medium">cash-ins</span> (top-ups)
+          across the whole university for the {rangeLabel}. Use the time-range and metric pickers below to change the slice.
+        </div>
+      </Card>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <StatCard
-          label={`Cash-ins · last ${days}d`}
-          value={totals.totalCount.toString()}
-          hint={`${totals.uniqueRoles} role${totals.uniqueRoles === 1 ? '' : 's'} active`}
+          label="Wallet cash-ins"
+          value={totals.totalCount.toLocaleString()}
+          hint={
+            totals.totalCount === 0
+              ? 'No top-ups in this range'
+              : `≈ ${avgPerDay.toFixed(avgPerDay < 1 ? 2 : 1)} per day on average`
+          }
           icon={<TrendingUp className="size-4" />}
           accent="brand"
         />
         <StatCard
-          label="Total credited"
+          label="Total money credited"
           value={formatPHP(totals.totalAmount)}
-          hint={`across ${totals.totalCount} transactions`}
+          hint={
+            totals.totalCount === 0
+              ? 'No transactions yet'
+              : `Average top-up · ${formatPHP(avgPerTopup)}`
+          }
           icon={<Coins className="size-4" />}
           accent="gold"
         />
         <StatCard
-          label="Top recipient role"
-          value={totals.topRole ?? '—'}
-          hint={totals.topRoleSummary}
+          label="Largest recipient group"
+          value={totals.topRole ? roleLabel(totals.topRole) : '—'}
+          hint={
+            totals.topRole
+              ? `${formatPHP(totals.topRoleAmount)} received · ${topShare}% of all credits`
+              : 'No activity yet'
+          }
           icon={<Wallet className="size-4" />}
           accent="emerald"
         />
         <StatCard
-          label="Registered users"
+          label="Registered users on platform"
           value={users.data ? users.data.totalElements.toLocaleString() : '—'}
-          hint="across students, faculty, and staff"
+          hint={`${totals.uniqueRoles} role${totals.uniqueRoles === 1 ? '' : 's'} active in this range`}
           icon={<Users className="size-4" />}
           accent="rose"
         />
@@ -88,7 +127,11 @@ export default function DashboardPage() {
 
       <Section
         title="Cash-ins by recipient role"
-        description={`Daily count and total over the last ${days} days, broken down by who received the funds.`}
+        description={
+          metric === 'count'
+            ? `How many top-ups each group received over the ${rangeLabel}.`
+            : `How much money each group received over the ${rangeLabel}.`
+        }
         trailing={
           <div className="flex items-center gap-2">
             <Select
@@ -96,20 +139,20 @@ export default function DashboardPage() {
               value={metric}
               onChange={(e) => setMetric(e.target.value as 'count' | 'amount')}
               options={[
-                { value: 'count',  label: 'By count' },
-                { value: 'amount', label: 'By amount' },
+                { value: 'count',  label: 'Show count' },
+                { value: 'amount', label: 'Show pesos' },
               ]}
-              className="w-32"
+              className="w-36"
             />
             <Select
               aria-label="Time range"
               value={String(days)}
               onChange={(e) => setDays(Number(e.target.value))}
               options={[
-                { value: '7',  label: 'Last 7 days' },
-                { value: '14', label: 'Last 14 days' },
-                { value: '30', label: 'Last 30 days' },
-                { value: '90', label: 'Last 90 days' },
+                { value: '7',  label: 'Past week' },
+                { value: '14', label: 'Past 2 weeks' },
+                { value: '30', label: 'Past month' },
+                { value: '90', label: 'Past 3 months' },
               ]}
               className="w-36"
             />
@@ -117,11 +160,36 @@ export default function DashboardPage() {
         }
       >
         <CashInChart data={stats.data} isLoading={stats.isLoading} metric={metric} />
+        {totals.byRole.length > 0 && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+            {totals.byRole.map((r) => (
+              <div
+                key={r.role}
+                className="rounded-lg border border-border-subtle/60 px-3 py-2"
+              >
+                <div className="flex items-center justify-between">
+                  <RoleBadge role={r.role} />
+                  <span className="text-[11px] font-semibold text-text-tertiary tabular-nums">
+                    {totals.totalAmount > 0
+                      ? `${Math.round((r.amount / totals.totalAmount) * 100)}%`
+                      : '0%'}
+                  </span>
+                </div>
+                <div className="text-sm font-bold text-text-primary tabular-nums mt-1">
+                  {formatPHP(r.amount)}
+                </div>
+                <div className="text-[11px] text-text-tertiary">
+                  {r.count.toLocaleString()} top-up{r.count === 1 ? '' : 's'}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </Section>
 
       <Section
         title="Recent cash-ins"
-        description="Most recent wallet credits across the entire university."
+        description="The 8 most recent wallet credits — see who was credited, who cashed it in, and when."
         trailing={
           <Link to="/transactions">
             <Button variant="ghost" size="sm">
@@ -191,30 +259,35 @@ export default function DashboardPage() {
   );
 }
 
+interface RoleTotal { role: UserRole; count: number; amount: number; }
+
 function computeTotals(buckets: { role: string; count: number; totalAmount: string }[] | undefined) {
   let totalCount = 0;
   let totalAmount = 0;
-  const byRole = new Map<string, { count: number; amount: number }>();
+  const byRoleMap = new Map<UserRole, RoleTotal>();
   for (const b of buckets ?? []) {
+    const role = b.role as UserRole;
     totalCount += b.count;
     const amt = Number(b.totalAmount);
     totalAmount += amt;
-    const cur = byRole.get(b.role) ?? { count: 0, amount: 0 };
-    byRole.set(b.role, { count: cur.count + b.count, amount: cur.amount + amt });
+    const cur = byRoleMap.get(role) ?? { role, count: 0, amount: 0 };
+    byRoleMap.set(role, { role, count: cur.count + b.count, amount: cur.amount + amt });
   }
-  let topRole: string | null = null;
+  let topRole: UserRole | null = null;
   let topAmount = 0;
-  byRole.forEach((v, k) => {
+  byRoleMap.forEach((v, k) => {
     if (v.amount > topAmount) {
       topAmount = v.amount;
       topRole = k;
     }
   });
+  const byRole = Array.from(byRoleMap.values()).sort((a, b) => b.amount - a.amount);
   return {
     totalCount,
     totalAmount,
     topRole,
-    topRoleSummary: topRole ? formatPHP(topAmount) : 'No activity yet',
-    uniqueRoles: byRole.size,
+    topRoleAmount: topAmount,
+    uniqueRoles: byRoleMap.size,
+    byRole,
   };
 }
