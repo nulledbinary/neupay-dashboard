@@ -17,7 +17,7 @@ permissions:
 
 env:
   AWS_REGION: ap-southeast-1
-  AMPLIFY_APP_ID: dn5kdpm86ei3w
+  AMPLIFY_APP_ID: d3vy9qmqxqs29m
   AMPLIFY_BRANCH: main
 
 jobs:
