@@ -48,10 +48,12 @@ export function MobileSidebar({ open, onClose }: { open: boolean; onClose: () =>
       <aside className="relative h-full w-72 bg-surface-elevated border-r border-border-subtle flex flex-col">
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center gap-3">
-            <div className="size-9 rounded-xl bg-gradient-to-br from-brand-600 to-brand-900 flex items-center justify-center text-gold-400 font-bold text-sm">
-              NEU
-            </div>
-            <div className="text-sm font-semibold">NeuPay Console</div>
+            <img
+              src="/NEUPAY.png"
+              alt="NeuPay"
+              className="size-12 rounded-xl object-contain shrink-0"
+            />
+            <div className="text-base font-semibold">NeuPay Console</div>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-surface-muted">
             <X className="size-4" />

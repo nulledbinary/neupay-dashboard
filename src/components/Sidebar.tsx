@@ -42,11 +42,13 @@ export function Sidebar() {
       className="hidden lg:flex w-64 shrink-0 flex-col border-r border-border-subtle bg-surface-elevated"
     >
       <div className="px-5 pt-6 pb-4 flex items-center gap-3">
-        <div className="size-9 rounded-xl bg-gradient-to-br from-brand-600 to-brand-900 flex items-center justify-center text-gold-400 font-bold tracking-wide text-sm">
-          NEU
-        </div>
+        <img
+          src="/NEUPAY.png"
+          alt="NeuPay"
+          className="size-14 rounded-xl object-contain shrink-0"
+        />
         <div>
-          <div className="text-sm font-semibold text-text-primary">NeuPay</div>
+          <div className="text-base font-semibold text-text-primary">NeuPay</div>
           <div className="text-[10px] uppercase tracking-[0.18em] text-text-tertiary">
             Cashier Console
           </div>

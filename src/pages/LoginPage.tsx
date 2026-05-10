@@ -72,9 +72,11 @@ export default function LoginPage() {
       <div className="relative z-10 w-full max-w-md login-fade-up">
         <div className="card border-border-subtle/60 bg-surface-elevated/80 backdrop-blur-xl shadow-[0_24px_60px_-20px_rgba(8,51,68,0.45)] p-8 sm:p-10">
           <div className="flex flex-col items-center text-center">
-            <div className="size-14 rounded-2xl bg-gradient-to-br from-brand-600 to-brand-900 grid place-items-center text-gold-400 font-bold text-lg shadow-lg shadow-brand-900/30 ring-1 ring-white/10">
-              NEU
-            </div>
+            <img
+              src="/NEUPAY.png"
+              alt="NeuPay"
+              className="size-28 rounded-2xl object-contain shadow-lg shadow-brand-900/30 ring-1 ring-white/10"
+            />
             <h1 className="mt-5 text-2xl font-bold tracking-tight login-shimmer-text">
               {APP_NAME}
             </h1>
@@ -85,8 +87,8 @@ export default function LoginPage() {
 
           <form onSubmit={onSubmit} className="mt-8 flex flex-col gap-4">
             <Input
-              label="Username"
-              placeholder="Username"
+              label="ID Number"
+              placeholder="ID Number"
               autoComplete="username"
               inputMode="text"
               required

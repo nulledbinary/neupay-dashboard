@@ -85,7 +85,7 @@ export default function NewUserPage() {
       );
       qc.invalidateQueries({ queryKey: ['users'] });
       qc.invalidateQueries({ queryKey: ['admin-transactions'] });
-      navigate(`/users/${created.id}`);
+      navigate(`/users/${encodeURIComponent(created.idNumber)}`);
     },
     onError: (err: unknown) => {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message

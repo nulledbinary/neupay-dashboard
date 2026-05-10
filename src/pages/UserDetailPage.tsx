@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   ShieldOff,
   ShieldCheck as ShieldOn,
+  Trash2,
   Coins,
   CalendarClock,
   CreditCard,
@@ -12,7 +13,14 @@ import {
   IdCard,
   Wallet,
 } from 'lucide-react';
-import { changeUserRole, freezeUser, reinstateUser, userDetails, userWallet } from '@/api/users';
+import {
+  changeUserRole,
+  deleteUser,
+  freezeUser,
+  reinstateUser,
+  userByIdNumber,
+  userWallet,
+} from '@/api/users';
 import type { UserRole } from '@/api/types';
 import { Card, Section } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -26,7 +34,8 @@ import { formatDateTime, formatPHP, formatRelative, initials } from '@/lib/forma
 import { usePageHeader } from '@/components/Layout';
 
 export default function UserDetailPage() {
-  const { id = '' } = useParams<{ id: string }>();
+  const { idNumber: rawIdNumber = '' } = useParams<{ idNumber: string }>();
+  const idNumber = decodeURIComponent(rawIdNumber);
   const navigate = useNavigate();
   const qc = useQueryClient();
   const setHeader = usePageHeader((s) => s.set);
@@ -35,43 +44,60 @@ export default function UserDetailPage() {
   const persona = session ? personaFor(session.user.role, session.user.program) : 'CASHIER';
   const canFreeze = canFreezeUsers(persona);
 
+  // Look the user up by ID number — UUIDs never appear in the URL bar.
   const detail = useQuery({
-    queryKey: ['user-detail', id],
-    queryFn: () => userDetails(id),
-    enabled: !!id,
+    queryKey: ['user-detail-by-id-number', idNumber],
+    queryFn: () => userByIdNumber(idNumber),
+    enabled: !!idNumber,
   });
+  const internalId = detail.data?.id ?? '';
   const wallet = useQuery({
-    queryKey: ['user-wallet', id],
-    queryFn: () => userWallet(id),
-    enabled: !!id,
+    queryKey: ['user-wallet', internalId],
+    queryFn: () => userWallet(internalId),
+    enabled: !!internalId,
   });
 
   const freeze = useMutation({
-    mutationFn: () => freezeUser(id),
+    mutationFn: () => freezeUser(internalId),
     onSuccess: () => {
       toast.warn('Wallet frozen and account suspended.');
-      qc.invalidateQueries({ queryKey: ['user-detail', id] });
-      qc.invalidateQueries({ queryKey: ['user-wallet', id] });
+      qc.invalidateQueries({ queryKey: ['user-detail-by-id-number', idNumber] });
+      qc.invalidateQueries({ queryKey: ['user-wallet', internalId] });
       qc.invalidateQueries({ queryKey: ['users'] });
     },
     onError: () => toast.error('Could not freeze the account.'),
   });
   const reinstate = useMutation({
-    mutationFn: () => reinstateUser(id),
+    mutationFn: () => reinstateUser(internalId),
     onSuccess: () => {
       toast.success('Account reinstated.');
-      qc.invalidateQueries({ queryKey: ['user-detail', id] });
-      qc.invalidateQueries({ queryKey: ['user-wallet', id] });
+      qc.invalidateQueries({ queryKey: ['user-detail-by-id-number', idNumber] });
+      qc.invalidateQueries({ queryKey: ['user-wallet', internalId] });
       qc.invalidateQueries({ queryKey: ['users'] });
     },
     onError: () => toast.error('Could not reinstate the account.'),
   });
+  const remove = useMutation({
+    mutationFn: () => deleteUser(internalId),
+    onSuccess: () => {
+      toast.success('User permanently deleted.');
+      qc.invalidateQueries({ queryKey: ['users'] });
+      qc.removeQueries({ queryKey: ['user-detail-by-id-number', idNumber] });
+      qc.removeQueries({ queryKey: ['user-wallet', internalId] });
+      navigate('/users', { replace: true });
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+        ?? 'Could not delete the user.';
+      toast.error(msg);
+    },
+  });
 
   const roleChange = useMutation({
-    mutationFn: (newRole: UserRole) => changeUserRole(id, newRole),
+    mutationFn: (newRole: UserRole) => changeUserRole(internalId, newRole),
     onSuccess: (updated) => {
       toast.success(`Role updated to ${updated.role}.`);
-      qc.invalidateQueries({ queryKey: ['user-detail', id] });
+      qc.invalidateQueries({ queryKey: ['user-detail-by-id-number', idNumber] });
       qc.invalidateQueries({ queryKey: ['users'] });
     },
     onError: (err: unknown) => {
@@ -84,7 +110,7 @@ export default function UserDetailPage() {
   useEffect(() => {
     setHeader({
       title: detail.data?.fullName ?? 'User',
-      description: detail.data ? `ID ${detail.data.idNumber} · ${detail.data.email}` : '—',
+      description: detail.data ? `ID ${detail.data.idNumber}` : '—',
       actions: (
         <Button variant="ghost" onClick={() => navigate(-1)}>
           <ArrowLeft className="size-4" /> Back
@@ -99,6 +125,7 @@ export default function UserDetailPage() {
   const u = detail.data;
   const isStaff = isStaffRole(u.role);
   const isSuspended = u.status === 'SUSPENDED';
+  const isSelf = session?.user.id === u.id;
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-6">
@@ -125,34 +152,67 @@ export default function UserDetailPage() {
         </dl>
 
         {canFreeze && (
-          <div className="border-t border-border-subtle pt-4 mt-2">
-            <div className="text-[10px] uppercase tracking-[0.16em] font-bold text-text-tertiary mb-2">
-              Account control
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              {!isStaff && (isSuspended ? (
-                <Button
-                  variant="primary"
-                  loading={reinstate.isPending}
-                  onClick={() => reinstate.mutate()}
-                >
-                  <ShieldOn className="size-4" />
-                  Reinstate
-                </Button>
-              ) : (
+          <div className="border-t border-border-subtle pt-4 mt-2 flex flex-col gap-3">
+            <div>
+              <div className="text-[10px] uppercase tracking-[0.16em] font-bold text-text-tertiary mb-2">
+                Account control
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                {!isStaff && (isSuspended ? (
+                  <Button
+                    variant="primary"
+                    loading={reinstate.isPending}
+                    onClick={() => reinstate.mutate()}
+                  >
+                    <ShieldOn className="size-4" />
+                    Reinstate
+                  </Button>
+                ) : (
+                  <Button
+                    variant="secondary"
+                    loading={freeze.isPending}
+                    onClick={() => {
+                      if (confirm(`Freeze ${u.fullName}'s wallet and suspend their account? They can be reinstated later.`)) {
+                        freeze.mutate();
+                      }
+                    }}
+                  >
+                    <ShieldOff className="size-4" />
+                    Freeze
+                  </Button>
+                ))}
                 <Button
                   variant="danger"
-                  loading={freeze.isPending}
+                  loading={remove.isPending}
+                  disabled={isSelf}
                   onClick={() => {
-                    if (confirm(`Freeze ${u.fullName}'s wallet and suspend their account?`)) {
-                      freeze.mutate();
-                    }
+                    if (isSelf) return;
+                    const ok = confirm(
+                      `PERMANENTLY DELETE ${u.fullName} (ID ${u.idNumber}) from the database?\n\n` +
+                      `This wipes their wallet, sessions and biometrics. Historical transactions and audit logs are kept (with the actor field set to NULL). This action cannot be undone.`,
+                    );
+                    if (ok) remove.mutate();
                   }}
                 >
-                  <ShieldOff className="size-4" />
-                  Delete (freeze)
+                  <Trash2 className="size-4" />
+                  Delete
                 </Button>
-              ))}
+              </div>
+              {isSelf && (
+                <p className="text-[11px] text-rose-600 dark:text-rose-400 mt-2">
+                  You can't delete the account you're currently signed in as.
+                </p>
+              )}
+              <p className="text-[11px] text-text-tertiary mt-2 leading-snug">
+                <span className="font-semibold text-text-secondary">Freeze</span> suspends sign-ins and locks the wallet — reversible by tapping the same button (it becomes <span className="font-semibold text-text-secondary">Reinstate</span>).{' '}
+                <span className="font-semibold text-text-secondary">Delete</span> wipes the user from the database entirely and is permanent.
+              </p>
+            </div>
+
+            <div>
+              <div className="text-[10px] uppercase tracking-[0.16em] font-bold text-text-tertiary mb-2">
+                Role
+              </div>
               <Select
                 aria-label="Change role"
                 value={u.role}
@@ -172,11 +232,6 @@ export default function UserDetailPage() {
                 ]}
                 className="w-44"
               />
-              <p className="text-[11px] text-text-tertiary">
-                {!isStaff
-                  ? 'Freeze suspends sign-ins and locks the wallet. Use the dropdown to reassign the role.'
-                  : 'Reassign role from the dropdown. Staff accounts are not freezable from this dashboard.'}
-              </p>
             </div>
           </div>
         )}

@@ -103,7 +103,7 @@ export default function UsersPage() {
             {filtered.map((u) => (
               <button
                 key={u.id}
-                onClick={() => navigate(`/users/${u.id}`)}
+                onClick={() => navigate(`/users/${encodeURIComponent(u.idNumber)}`)}
                 className="w-full text-left flex items-center gap-4 px-5 py-3 row-hover"
               >
                 <span className="size-10 rounded-xl bg-surface-muted text-text-secondary grid place-items-center text-xs font-bold">

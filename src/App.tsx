@@ -41,7 +41,7 @@ export default function App() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/cash-in" element={<CashInPage />} />
           <Route path="/users" element={<UsersPage />} />
-          <Route path="/users/:id" element={<UserDetailPage />} />
+          <Route path="/users/:idNumber" element={<UserDetailPage />} />
           <Route path="/transactions" element={<TransactionsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Route>

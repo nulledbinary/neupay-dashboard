@@ -25,6 +25,18 @@ export async function userDetails(id: string): Promise<UserDetails> {
   return data;
 }
 
+/** Resolve by the human-readable ID number — used by the dashboard route so URLs never expose UUIDs. */
+export async function userByIdNumber(idNumber: string): Promise<UserDetails> {
+  const { data } = await api.get<UserDetails>(
+    `/admin/users/by-id-number/${encodeURIComponent(idNumber)}`,
+  );
+  return data;
+}
+
+export async function deleteUser(id: string): Promise<void> {
+  await api.delete(`/admin/users/${id}`);
+}
+
 export async function userWallet(id: string): Promise<WalletView> {
   const { data } = await api.get<WalletView>(`/admin/users/${id}/wallet`);
   return data;
