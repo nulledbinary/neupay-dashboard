@@ -85,8 +85,8 @@ export default function LoginPage() {
 
           <form onSubmit={onSubmit} className="mt-8 flex flex-col gap-4">
             <Input
-              label="ID Number"
-              placeholder="22-14309-736"
+              label="Username"
+              placeholder="Username"
               autoComplete="username"
               inputMode="text"
               required
@@ -96,6 +96,7 @@ export default function LoginPage() {
             />
             <Input
               label="Password"
+              placeholder="Password"
               type="password"
               autoComplete="current-password"
               required
