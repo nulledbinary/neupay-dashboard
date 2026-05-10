@@ -39,6 +39,13 @@ export const useAuth = create<AuthState>()((set, get) => ({
     set({ loading: true, loginError: null });
     try {
       const auth = await authApi.login({ idNumber, password });
+      // Reject any response that doesn't carry both tokens — historically a
+      // broken Amplify rewrite could return a 200 HTML page that JSON-parsed
+      // as `{}`, leaving the store with `session != null` and `tokens.access
+      // === undefined`. Subsequent admin requests then 403'd silently.
+      if (!auth?.accessToken || !auth?.refreshToken || !auth?.user) {
+        throw new Error('Login response was malformed — please retry.');
+      }
       setAuthTokens(auth.accessToken, auth.refreshToken);
       set({
         session: {
