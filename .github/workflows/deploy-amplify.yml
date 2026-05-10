@@ -1,0 +1,70 @@
+name: Deploy FE to AWS Amplify
+
+# Triggers an Amplify build of the connected branch. Amplify itself pulls
+# source from the connected GitHub repo, builds via amplify.yml, and ships.
+# This workflow is what gives you a single CI gate (typecheck + lint) before
+# the Amplify build fires, plus deploy-from-anywhere when the branch is
+# rebuilt manually.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write   # OIDC for AWS auth
+  contents: read
+
+env:
+  AWS_REGION: ap-southeast-1
+  AMPLIFY_APP_ID: dn5kdpm86ei3w
+  AMPLIFY_BRANCH: main
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --no-audit --prefer-offline
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run build
+
+  deploy:
+    needs: ci
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::542508027319:role/github-actions-neupay
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Trigger Amplify release
+        run: |
+          JOB_ID=$(aws amplify start-job \
+            --app-id "$AMPLIFY_APP_ID" \
+            --branch-name "$AMPLIFY_BRANCH" \
+            --job-type RELEASE \
+            --query 'jobSummary.jobId' --output text)
+          echo "Started Amplify job $JOB_ID"
+
+          # Poll until the job leaves PENDING/RUNNING.
+          for i in $(seq 1 60); do
+            STATUS=$(aws amplify get-job \
+              --app-id "$AMPLIFY_APP_ID" \
+              --branch-name "$AMPLIFY_BRANCH" \
+              --job-id "$JOB_ID" \
+              --query 'job.summary.status' --output text)
+            echo "[$i] status=$STATUS"
+            case "$STATUS" in
+              SUCCEED)  exit 0 ;;
+              FAILED|CANCELLED) exit 1 ;;
+            esac
+            sleep 20
+          done
+          echo "Timed out waiting for Amplify job"; exit 1
